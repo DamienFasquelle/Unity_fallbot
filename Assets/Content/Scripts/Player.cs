@@ -122,7 +122,7 @@ public class Player : MonoBehaviour //NetworkBehaviour
     #region Constants
     private const float GRAVITY = -20;
     private const float KMH_TO_MS = 1 / 3.6f;
-    private const float GROUND_STICK_FORCE = -1;
+    private const float GROUND_STICK_FORCE = -2;
     #endregion
 
     #region Network
@@ -244,6 +244,8 @@ public class Player : MonoBehaviour //NetworkBehaviour
             SetMovement(deltaTime);
             UpdateState();
         }
+        
+        
     }
 
     void LateUpdate()
@@ -374,7 +376,7 @@ public class Player : MonoBehaviour //NetworkBehaviour
         }
 
         _groundCheckOffset = _references.Controller.center + Vector3.up * (_references.Controller.height * -.5f + _references.Controller.radius - _references.Controller.skinWidth - _settings.GroundTolerance);
-        _groundCheckRadius = _references.Controller.radius + _references.Controller.skinWidth;
+        _groundCheckRadius = _references.Controller.radius;
     }
     
     private void GetInputs()
@@ -417,15 +419,15 @@ public class Player : MonoBehaviour //NetworkBehaviour
         {
             Transform newPlatform = _groundCheckResults[0].transform;
 
+            // If platform changed, initialize last frame values
             if (newPlatform != _state.GroundTransform)
             {
                 _state.GroundTransform = newPlatform;
                 _state.GroundVelocity = Vector3.zero;
-                _groundContactPosition = newPlatform.position;
-                _groundContactRotation = newPlatform.rotation;
+                _groundContactPosition = _state.GroundTransform.position;
+                _groundContactRotation = _state.GroundTransform.rotation;
             }
         }
-
         else
         {
             // If player just left the platform
@@ -552,8 +554,10 @@ public class Player : MonoBehaviour //NetworkBehaviour
         velocity += _state.GroundVelocity;
         velocity += _state.ExtraVelocity;
         velocity *= deltaTime;
-        
+
         _references.Controller.Move(velocity);
+
+        // Apply player rotation
 
         if (lookDir.sqrMagnitude > .01f)
         {
@@ -580,9 +584,10 @@ public class Player : MonoBehaviour //NetworkBehaviour
         }
         else
         {
-            _state.CurrentState = _state.HorizontalVelocity.sqrMagnitude > 0.1f
-                ? PlayerState.Moving
-                : PlayerState.Idle;
+            if (_state.VerticalVelocity <= 0)
+                _state.CurrentState = _state.HorizontalVelocity.sqrMagnitude > 0.1f
+                    ? PlayerState.Moving
+                    : PlayerState.Idle;
         }
 
         if (_state.CurrentState != previousState)
